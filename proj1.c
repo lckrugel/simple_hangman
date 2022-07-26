@@ -18,7 +18,7 @@ int vencedor(char* palavra, char* acertos);
 static int TAM_MAX_PALAVRA = 20;
 
 int main(void) {    
-    char palavra[20] = "academico";
+    char palavra[20] = "universidade";
     char acertos[TAM_MAX_PALAVRA+1];
     int vidas = 5;
     char erros[vidas+1];
