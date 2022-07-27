@@ -10,8 +10,8 @@ int tamanho_string(char* str);
 void inicia_string(char* str, int tam);
 void copia_string(char* alvo, char* origem);
 void printa_string(char* str, int espaco);
-int letra_repetida(char* chute, char* acertos, char* erros);
-int letra_certa(char* palavra, char* chute, char* acertos);
+int letra_repetida(char chute, char* acertos, char* erros);
+int letra_certa(char* palavra, char chute, char* acertos);
 int vencedor(char* palavra, char* acertos);
 
 
@@ -22,7 +22,7 @@ int main(void) {
     char acertos[TAM_MAX_PALAVRA+1];
     int vidas = 5;
     char erros[vidas+1];
-    int chutes_errados = 0;
+    int n_chutes_errados = 0;
 
     inicia_string(acertos, TAM_MAX_PALAVRA+1);
     inicia_string(erros, vidas+1);
@@ -36,13 +36,13 @@ int main(void) {
             copia_string(acertos, chute);
             break;
         } else {
-            if (letra_repetida(chute, acertos, erros)) {
+            if (letra_repetida(chute[0], acertos, erros)) {
                 printf("== Voce ja tentou isso. ==\n");
                 continue;
             }
-            if (!letra_certa(palavra, chute, acertos) && chute[0] != '\0') {
-                erros[chutes_errados] = chute[0];
-                chutes_errados++;
+            if (!letra_certa(palavra, chute[0], acertos) && chute[0] != '\0') {
+                erros[n_chutes_errados] = chute[0];
+                n_chutes_errados++;
                 vidas--;
             }
         }
@@ -65,11 +65,11 @@ void tela_inicial()
 }
 
 
-/* mostra a tela final e informa se o usuario venceu ou nao */
+/* mostra a tela final e informa se o jogador venceu ou nao */
 void tela_final(char * palavra, int vencedor)
 {
     printf("\n===== FIM DE JOGO =====\n");
-    if (vencedor) {
+    if (vencedor==1) {
         printf("GANHOU!\n");
     } else {
         printf("PERDEU.\n");
@@ -81,7 +81,7 @@ void tela_final(char * palavra, int vencedor)
 }
 
 
-/* mostra o estado do jogo: n de vidas, acertos e erros ao usuario */
+/* mostra o estado do jogo: n de vidas, acertos e erros ao jogador */
 void mostra_estado(int vidas, char* palavra, char* acertos, char* erros)
 {
     printf("Vidas: %d    |    ", vidas);
@@ -111,22 +111,23 @@ void le_entrada(char* chute)
 }
 
 
+/* remove o caractere '\n' e o substitui por '\0' */
 void remove_fim_de_linha(char* str)
 {
     int i = 0;
-    while (str[i] != '\0' && str[i] != '\n') {
+    while (str[i] != '\0') {
+        if (str[i] == '\n') str[i] = '\0';
         i++;
-    }
-    str[i] = '\0';
+    }    
 }
 
 
 /* checa se a letra do chute esta contida nos acertos ou erros */
-int letra_repetida(char* chute, char* acertos, char* erros)
+int letra_repetida(char chute, char* acertos, char* erros)
 {
     int i = 0;
     while (erros[i] != '\0') {
-        if (erros[i] == chute[0]) {
+        if (erros[i] == chute) {
             return 1;
         }
         i++;
@@ -134,7 +135,7 @@ int letra_repetida(char* chute, char* acertos, char* erros)
 
     i = 0;
     while (acertos[i] != '\0') {
-        if (acertos[i] == chute[0]) {
+        if (acertos[i] == chute) {
             return 1;
         }
         i++;
@@ -145,13 +146,13 @@ int letra_repetida(char* chute, char* acertos, char* erros)
 
 /* testa se a letra do chute existe na palavra, retorna 1 se existir.
    caso exista, adiciona a letra em acertos */
-int letra_certa(char* palavra, char* chute, char* acertos)
+int letra_certa(char* palavra, char chute, char* acertos)
 {
     int flag = 0;
     int i = 0;
     while (palavra[i] != '\0' && i < TAM_MAX_PALAVRA+1) {
-        if (chute[0] == palavra[i]) {
-            acertos[i] = chute[0];
+        if (chute == palavra[i]) {
+            acertos[i] = chute;
             flag = 1;
         }
         i++;
