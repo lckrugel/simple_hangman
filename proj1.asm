@@ -1,3 +1,8 @@
+###############################################################################
+#             JOGO DA FORCA - PROJETO 1 ORGANIZACAO DE COMPUTADORES           #
+#                                                                             #
+# NOME: LEONARDO CARGNIN KRUGEL                                               #
+###############################################################################
 
 
 .data
@@ -11,18 +16,19 @@ estado_01:  .asciiz "Vidas: "
 estado_02:  .asciiz "   |   "
 estado_03:  .asciiz "_ "
 estado_04:  .asciiz "|   Erros: "
+main_01:    .asciiz "== Voce ja tentou isso. ==\n"
 outro_00:   .asciiz "\n===== FIM DE JOGO =====\n"
 outro_01_A: .asciiz "GANHOU\n"
 outro_01_B: .asciiz "PERDEU\n"
 outro_02:   .asciiz "A palavra era: "
 outro_03:   .asciiz "=======================\n"
 
+vidas:      .word   5
+tam_max:    .word   21
 palavra:    .asciiz "academico"
-chute:      .asciiz "a"
-acertos:    .asciiz "academica"
-erros:      .asciiz "kgb"
-
-
+chute:      .space  20
+acertos:    .space  20
+erros:      .space  6
 
 
 .text
@@ -32,6 +38,15 @@ erros:      .asciiz "kgb"
 .eqv SERVICO_IMPRIME_INTEIRO 1              # DEFINE para printf("%d")
 .eqv SERVICO_LE_STRING 8                    # DEFINE para fgets()
 .eqv SERVICO_SAIDA 17                       # DEFINE para exit2()
+
+
+# macro para imprimir nova linha
+.macro nova_linha
+    li      $v0, SERVICO_IMPRIME_CARACTERE
+    li      $a0, '\n'
+    syscall                                 # printf("\n")
+.end_macro
+
 
 .globl main
 
@@ -44,95 +59,143 @@ erros:      .asciiz "kgb"
 # $s3 - *erros
 # $s4 - vidas
 # $s5 - n_chutes_errados
+# $t0 - resultados de expressoes logicas
+# $t1 - 1
+# $t2 - end de erros[n_chutes_errados]
+# $t3 - chute[0]
+# $t4 - valores numericos temporarios
 #######################################
-# MAPA DA MEMORIA
-# | $ra            |    $sp + 0
+# ULTIMO PROCEDIMENTO EXECUTADO,
+# NAO E NECESSARIO GUARDAR $ra
 #######################################
 main:
-    # == prologo ==
-    addiu   $sp, $sp, -12                   # aloca x bytes na pilha
-    sw      $ra, 0($sp)                     # guarda o end de retorno
+    la      $s0, chute                      # $s0 <- *chute
+    la      $s1, palavra                    # $s1 <- *palavra
+    la      $s2, acertos                    # $s2 <- *acertos
+    la      $s3, erros                      # $s3 <- *erros
+    lw      $s4, vidas                      # $s4 <- vidas = 5
+    li      $s5, 0                          # $s5 <- n_chutes_errados = 0
 
-    # == corpo ==
-    la      $s0, chute
-    la      $s1, palavra
-    la      $s2, acertos
-    la      $s3, erros
-    li      $s4, 5                          # $s4 <- vidas
+    # inicializa strings acertos e erros
+    la      $a0, ($s2)
+    la      $t4, tam_max
+    lw      $a1, ($t4)
+    jal     inicia_string                   # inicia_string(acertos, tam_max)
 
-    # tela inicial
-    jal     tela_inicial
+    la      $a0, ($s3)
+    addiu   $t4, $s4, 1
+    la      $a1, ($t4)
+    jal     inicia_string                   # inicia_string(erros,vidas+1)
 
-    # inicia string
-    #addiu   $t0, $zero, 10
-    #la      $a0, ($s2)
-    #la      $a1, ($t0)
-    #jal     inicia_string
+    # mostra tela inicial
+    jal tela_inicial
 
-    # mostra estado
-    la      $a0, ($s4)
-    la      $a1, ($s1)
-    la      $a2, ($s2)
-    la      $a3, ($s3)
-    jal     mostra_estado
+    # loop de execucao
 
-    # letra repetida
-    #la      $a0, ($s0)
-    #la      $a1, ($s2)
-    #la      $a2, ($s3)
-    #jal     letra_repetida
+    while_inicio:
+        j       while_condicao
 
-    # letra certa
-    #la      $a0, ($s0)
-    #la      $a1, ($s1)
-    #la      $a2, ($s2)
-    #jal     letra_certa
+    while_codigo:
+        la      $a0, ($s4)
+        la      $a1, ($s1)
+        la      $a2, ($s2)
+        la      $a3, ($s3)
+        jal     mostra_estado               # mostra_estado(vidas,palavra,acertos,erros)
 
-    # vencedor
+        la      $a0, ($s0)
+        la      $t4, tam_max
+        lw      $a1, ($t4)
+        jal     le_entrada                  # le_entrada(chute, tam_max)
+
+        # se tamanho(chute)>1
+        if_tamanho_condicao:
+            la      $a0, ($s0)
+            jal     tamanho_string          # tamanho_string(chute)
+            li      $t1, 1
+            sgt     $t0, $v0, $t1           # $t0=1 se tamanho_string(chute)>1
+            bne     $t0, $t1, else_tamanho_codigo
+                                            # if(tamanho_string(chute)>1)
+
+        if_tamanho_codigo:
+            la      $a0, ($s2)
+            la      $a1, ($s0)
+            jal     copia_string            # copia_string(acertos,chute)
+            j       while_fim               # break
+
+        else_tamanho_codigo:
+            # se a letra for repetida
+            if_repetida_condicao:
+                la      $a0, 0($s0)
+                la      $a1, ($s2)
+                la      $a2, ($s3)
+                jal     letra_repetida      # letra_repetida(chute,acertos,erros)
+                                            # retorna 1 qnd repetida
+                li      $t1, 1
+                bne     $t1, $v0, if_repetida_fim
+                                            # if(letra_repetida())
+
+            if_repetida_codigo:
+                la      $v0, SERVICO_IMPRIME_STRING
+                la      $a0, main_01
+                syscall                     # printf("== Voce ja tentou isso. ==\n");
+                j       while_inicio        # continue                
+
+            if_repetida_fim:
+
+            # se for a letra errada
+            if_errada_condicao:
+                la      $a0, 0($s0)
+                la      $a1, ($s1)
+                la      $a2, ($s2)
+                jal     letra_certa         # letra_certa(chute[0],palavra,acertos)
+                                            # retorna 1 qnd certa
+                                            # qnd for a letra certa adiciona ela aos acertos
+                bne     $v0, $zero, if_errada_fim
+                                            # if(!letra_certa())
+
+                lbu     $t3, 0($s0)         # chute[0]
+                beq     $t3, $zero, if_errada_fim
+                                            # if(chute[0]!='\0')
+
+            if_errada_codigo:
+                add     $t2, $s3, $s5       # $t2 <- end de erros[n_chutes_errados]
+                lbu     $t3, 0($s0)         # $t3 <- chute[0]
+                sb      $t3, 0($t2)         # erros[n_chutes_errados] = chute[0]
+
+                add     $s5, $s5, 1         # n_chutes_errados++
+                add     $s4, $s4, -1        # vidas--
+
+            if_errada_fim:
+
+
+        if_else_tamanho_fim:
+
+
+    while_condicao:
+        sgt     $t0, $s4, $zero             # $t0=1 se vidas>0
+        li      $t1, 1
+        bne     $t0, $t1, while_fim
+                                            # while(vidas>0)
+        la      $a0, ($s1)
+        la      $a1, ($s2)
+        jal     vencedor                    # vencedor(palavra,acertos)
+                                            # retorna 1 qnd vecedor
+        beq     $v0, $zero, while_codigo
+                                            # while(!vencedor())       
+
+    while_fim:
+
+    # verifica se for vencedor e mostra tela final de acordo
     la      $a0, ($s1)
     la      $a1, ($s2)
-    jal     vencedor
+    jal     vencedor                        # vencedor(palavra,acertos)
+                                            # retora 1 qnd vencedor
 
-    # tela final
-    #la      $a0, ($s1)
-    #li      $a1, 0
-    #jal     tela_final    
+    la      $a1, ($v0)
+    la      $a0, ($s1)
+    jal     tela_final                      # tela_final(palavra, vencedor())
 
-    # le string
-    #la      $a0, ($s0)
-    #li      $a1, 30
-    #jal     le_entrada
-
-    # copia palavra em chute
-    #la      $s1, palavra
-    #la      $a0, ($s0)
-    #la      $a1, ($s1)
-    #jal     copia_string
-
-    # remove fim de linha
-    #la      $a0, ($s0)
-    #jal     remove_fim_de_linha
-
-    # printa inteiro
-    la      $a0, ($v0)
-    li      $v0, SERVICO_IMPRIME_INTEIRO
-    syscall
-    
-    # printa string
-    #addiu   $t1, $zero, 0                   # espaco (0 ou 1)
-    #la      $a0, ($s2)
-    #la      $a1, ($t1)
-    #jal     printa_string
-
-    # tamanho string
-    #la      $s1, palavra
-    #la      $a0, ($s1)
-    #jal     tamanho_string
-
-
-    # == epilogo ==
-    lw      $ra, 0($sp)                     # recupera end de retorno
-    addiu   $sp, $sp, 12                    # libera x bytes na pilha
+    # == finaliza programa ==
     li      $v0, SERVICO_SAIDA              
     li      $a0, 0
     syscall                                 # return 0 - sai sem erros
@@ -220,9 +283,7 @@ tela_final:
     jal     printa_string                   # printa_string(palavra, 0)
     # ax = ??? tx = ???
 
-    li      $v0, SERVICO_IMPRIME_CARACTERE
-    li      $a0, '\n'
-    syscall                                 # printf("\n")
+    nova_linha                              # print("\n")
     li      $v0, SERVICO_IMPRIME_STRING
     la      $a0, outro_03
     syscall                                 # printf("=======================\n")
@@ -318,9 +379,7 @@ mostra_estado:
     jal     printa_string                   # printa_string(erros, 1)
     # $tx = ??? $ax = ???
 
-    li      $v0, SERVICO_IMPRIME_CARACTERE
-    li      $a0, '\n'
-    syscall                                 # printf("\n")
+    nova_linha                              # print("\n")
 
     # == epilogo ==
     lw      $ra, 0($sp)                     # carrega o end de retorno
@@ -340,7 +399,7 @@ mostra_estado:
 # $t0 - i
 # $t1 - endereco de str[i]
 # $t2 - str[i]
-# $t3 - '@'
+# $t3 - ' '
 # $t5 - i<(tam-1)
 # $t6 - tam-1
 # $t7 - 1
@@ -356,18 +415,18 @@ inicia_string:
     inicia_string_codigo_for:
         add     $t1, $a0, $t0               # $t1 = (*str) + offset
         la      $t2, 0($t1)                 # str[i]
-        li      $t3, '@'                    # $t7 <- '@'
-        sb      $t3, 0($t2)                 # str[i] = '@'
+        li      $t3, ' '                    # $t7 <- ' '
+        sb      $t3, 0($t2)                 # str[i] = ' '
         addiu   $t0, $t0, 1                 # i++
 
     inicia_string_condicao_for:
         li      $t7, 1                      # $t7 <- 1
-        slt     $t5, $t0, $t6               # $t5=1 se 1<(tam-1)
+        slt     $t5, $t0, $t6               # $t5=1 se i<(tam-1)
         beq     $t5, $t7, inicia_string_codigo_for
                                             # ($t5==$t7)
 
     inicia_string_fim_for:
-    sb      $zero, 0($t2)                     # str[i] = '\0'
+    sb      $zero, 0($t2)                   # str[i] = '\0'
     jr      $ra
 
 
@@ -424,9 +483,7 @@ printa_string:
                                             # while(str[i] != '\0')
 
     printa_string_while_fim:
-    li      $v0, SERVICO_IMPRIME_CARACTERE
-    li      $a0, '\n'
-    syscall                                 # printf("\n")
+    nova_linha                              # print("\n")
     jr      $ra
 
 
@@ -443,7 +500,7 @@ printa_string:
 # $t2 - endereco de str[i]
 # $t3 - str[i]
 # $t4 - '\0'
-# $t5 - '@'
+# $t5 - ' '
 #######################################
 # PROCEDIMENTO FOLHA, NAO REQUER AJUSTES EM $ra
 #######################################
@@ -456,9 +513,9 @@ tamanho_string:
 
     tamanho_string_while_codigo:
         tamanho_string_if_condicao:
-            li      $t5, '@'                # $t5 <- '@'
+            li      $t5, ' '                # $t5 <- ' '
             beq     $t3, $t5, tamanho_string_if_fim        
-                                            # if(str[i]!='@')
+                                            # if(str[i]!=' ')
 
         tamanho_string_if_codigo:
             addiu $t1, $t1, 1               # tam++                 
@@ -512,7 +569,7 @@ copia_string:
 
     copia_string_while_fim:
     add     $t3, $a0, $t0                   # $t3 = (*alvo) + i
-    sb      $t4, 0($t3)                     # alvo[i] = '\0'
+    sb      $zero, 0($t3)                   # alvo[i] = '\0'
     jr      $ra
     
 
@@ -560,7 +617,7 @@ remove_fim_de_linha:
 
 
 #######################################
-# remove o caractere '\n' e o substitui por '\0' 
+# le o chute do jogador e retira os caracteres de fim de linha lidos 
 # argumentos:
 #   $a0 - *buffer
 #   $a1 - tamanho
